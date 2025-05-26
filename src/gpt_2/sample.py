@@ -1,9 +1,10 @@
 import tensorflow as tf
+from typing import Any
 
 import gpt_2.model as model
 
 
-def top_k_logits(logits, k):
+def top_k_logits(logits: Any, k: int) -> Any:
     if k == 0:
         # no truncation
         return logits
@@ -24,7 +25,7 @@ def top_k_logits(logits, k):
     )
 
 
-def top_p_logits(logits, p):
+def top_p_logits(logits: Any, p: float) -> Any:
     """Nucleus sampling"""
     batch, _ = logits.shape.as_list()
     sorted_logits = tf.sort(logits, direction="DESCENDING", axis=-1)
@@ -49,15 +50,15 @@ def top_p_logits(logits, p):
 
 def sample_sequence(
     *,
-    hparams,
-    length,
-    start_token=None,
-    batch_size=None,
-    context=None,
-    temperature=1,
-    top_k=0,
-    top_p=1,
-):
+    hparams: Any,
+    length: int,
+    start_token: int | None = None,
+    batch_size: int | None = None,
+    context: Any | None = None,
+    temperature: float = 1,
+    top_k: int = 0,
+    top_p: float = 1,
+) -> Any:
     if start_token is None:
         assert context is not None, "Specify exactly one of start_token and context!"
     else:

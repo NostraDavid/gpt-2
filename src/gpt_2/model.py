@@ -1,8 +1,10 @@
 import numpy as np
 import tensorflow as tf
 from hparams import HParams
+from typing import Any
 
-def default_hparams():
+
+def default_hparams() -> HParams:
     return HParams(
         n_vocab=0,
         n_ctx=1024,
@@ -12,24 +14,24 @@ def default_hparams():
     )
 
 
-def shape_list(x):
+def shape_list(x: Any) -> list[Any]:
     """Deal with dynamic shape in tensorflow cleanly."""
     static = x.shape.as_list()
     dynamic = tf.shape(x)
     return [dynamic[i] if s is None else s for i, s in enumerate(static)]
 
 
-def softmax(x, axis=-1):
+def softmax(x: Any, axis: int = -1) -> Any:
     x = x - tf.reduce_max(x, axis=axis, keepdims=True)
     ex = tf.exp(x)
     return ex / tf.reduce_sum(ex, axis=axis, keepdims=True)
 
 
-def gelu(x):
+def gelu(x: Any) -> Any:
     return 0.5 * x * (1 + tf.tanh(np.sqrt(2 / np.pi) * (x + 0.044715 * tf.pow(x, 3))))
 
 
-def norm(x, scope, *, axis=-1, epsilon=1e-5):
+def norm(x: Any, scope: str, *, axis: int = -1, epsilon: float = 1e-5) -> Any:
     """Normalize to mean = 0, std = 1, then do a diagonal affine transform."""
     with tf.variable_scope(scope):
         n_state = x.shape[-1].value
@@ -42,19 +44,19 @@ def norm(x, scope, *, axis=-1, epsilon=1e-5):
         return x
 
 
-def split_states(x, n):
+def split_states(x: Any, n: int) -> Any:
     """Reshape the last dimension of x into [n, x.shape[-1]/n]."""
     *start, m = shape_list(x)
     return tf.reshape(x, start + [n, m // n])
 
 
-def merge_states(x):
+def merge_states(x: Any) -> Any:
     """Smash the last two dimensions of x into a single dimension."""
     *start, a, b = shape_list(x)
     return tf.reshape(x, start + [a * b])
 
 
-def conv1d(x, scope, nf, *, w_init_stdev=0.02):
+def conv1d(x: Any, scope: str, nf: int, *, w_init_stdev: float = 0.02) -> Any:
     with tf.variable_scope(scope):
         *start, nx = shape_list(x)
         w = tf.get_variable(
@@ -70,7 +72,7 @@ def conv1d(x, scope, nf, *, w_init_stdev=0.02):
         return c
 
 
-def attention_mask(nd, ns, *, dtype):
+def attention_mask(nd: int, ns: int, *, dtype: Any) -> Any:
     """1's in the lower triangle, counting from the lower right corner.
 
     Same as tf.matrix_band_part(tf.ones([nd, ns]), -1, ns-nd), but doesn't produce garbage on TPUs.
@@ -81,7 +83,9 @@ def attention_mask(nd, ns, *, dtype):
     return tf.cast(m, dtype)
 
 
-def attn(x, scope, n_state, *, past, hparams):
+def attn(
+    x: Any, scope: str, n_state: int, *, past: Any | None, hparams: HParams
+) -> tuple[Any, Any]:
     assert x.shape.ndims == 3  # Should be [batch, sequence, features]
     assert n_state % hparams.n_head == 0
     if past is not None:
@@ -129,7 +133,7 @@ def attn(x, scope, n_state, *, past, hparams):
         return a, present
 
 
-def mlp(x, scope, n_state, *, hparams):
+def mlp(x: Any, scope: str, n_state: int, *, hparams: HParams) -> Any:
     with tf.variable_scope(scope):
         nx = x.shape[-1].value
         h = gelu(conv1d(x, "c_fc", n_state))
@@ -137,7 +141,7 @@ def mlp(x, scope, n_state, *, hparams):
         return h2
 
 
-def block(x, scope, *, past, hparams):
+def block(x: Any, scope: str, *, past: Any | None, hparams: HParams) -> tuple[Any, Any]:
     with tf.variable_scope(scope):
         nx = x.shape[-1].value
         a, present = attn(norm(x, "ln_1"), "attn", nx, past=past, hparams=hparams)
@@ -147,7 +151,12 @@ def block(x, scope, *, past, hparams):
         return x, present
 
 
-def past_shape(*, hparams, batch_size=None, sequence=None):
+def past_shape(
+    *,
+    hparams: HParams,
+    batch_size: int | None = None,
+    sequence: int | None = None,
+) -> list[Any]:
     return [
         batch_size,
         hparams.n_layer,
@@ -158,20 +167,26 @@ def past_shape(*, hparams, batch_size=None, sequence=None):
     ]
 
 
-def expand_tile(value, size):
+def expand_tile(value: Any, size: int) -> Any:
     """Add a new axis of given size."""
     value = tf.convert_to_tensor(value, name="value")
     ndims = value.shape.ndims
     return tf.tile(tf.expand_dims(value, axis=0), [size] + [1] * ndims)
 
 
-def positions_for(tokens, past_length):
+def positions_for(tokens: Any, past_length: Any) -> Any:
     batch_size = tf.shape(tokens)[0]
     nsteps = tf.shape(tokens)[1]
     return expand_tile(past_length + tf.range(nsteps), batch_size)
 
 
-def model(hparams, X, past=None, scope="model", reuse=False):
+def model(
+    hparams: HParams,
+    X: Any,
+    past: Any | None = None,
+    scope: str = "model",
+    reuse: bool = False,
+) -> Any:
     with tf.variable_scope(scope, reuse=reuse):
         results = {}
         batch, sequence = shape_list(X)

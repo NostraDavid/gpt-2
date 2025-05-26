@@ -12,16 +12,16 @@ import gpt_2.encoder as encoder
 
 
 def sample_model(
-    model_name="124M",
-    seed=None,
-    nsamples=0,
-    batch_size=1,
-    length=None,
-    temperature=1,
-    top_k=0,
-    top_p=1,
-    models_dir="models",
-):
+    model_name: str = "124M",
+    seed: int | None = None,
+    nsamples: int = 0,
+    batch_size: int = 1,
+    length: int | None = None,
+    temperature: float = 1,
+    top_k: int = 0,
+    top_p: float = 1,
+    models_dir: str = "models",
+) -> None:
     """
     Run the sample_model
     :model_name=124M : String, which model to use
@@ -52,9 +52,7 @@ def sample_model(
     if length is None:
         length = hparams.n_ctx
     elif length > hparams.n_ctx:
-        raise ValueError(
-            "Can't get samples longer than window size: %s" % hparams.n_ctx
-        )
+        raise ValueError(f"Can't get samples longer than window size: {hparams.n_ctx}")
 
     with tf.Session(graph=tf.Graph()) as sess:
         np.random.seed(seed)

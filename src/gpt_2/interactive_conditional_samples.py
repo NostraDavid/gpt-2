@@ -12,16 +12,16 @@ import gpt_2.encoder as encoder
 
 
 def interact_model(
-    model_name="124M",
-    seed=None,
-    nsamples=1,
-    batch_size=1,
-    length=None,
-    temperature=1,
-    top_k=0,
-    top_p=1,
-    models_dir="models",
-):
+    model_name: str = "124M",
+    seed: int | None = None,
+    nsamples: int = 1,
+    batch_size: int = 1,
+    length: int | None = None,
+    temperature: float = 1,
+    top_k: int = 0,
+    top_p: float = 1,
+    models_dir: str = "models",
+) -> None:
     """
     Interactively run the model
     :model_name=124M : String, which model to use
@@ -50,19 +50,22 @@ def interact_model(
     enc = encoder.get_encoder(model_name, models_dir)
     hparams = model.default_hparams()
     with open(os.path.join(models_dir, model_name, "hparams.json")) as f:
-        hparams.override_from_dict(json.load(f))
-
+        hparams_dict = json.load(f)
+        for k, v in hparams_dict.items():
+            setattr(hparams, k, v)
+    # Use getattr to avoid attribute errors if n_ctx is missing
+    n_ctx = getattr(hparams, 'n_ctx', 1024)
     if length is None:
-        length = hparams.n_ctx // 2
-    elif length > hparams.n_ctx:
-        raise ValueError(
-            "Can't get samples longer than window size: %s" % hparams.n_ctx
-        )
-
-    with tf.Session(graph=tf.Graph()) as sess:
-        context = tf.placeholder(tf.int32, [batch_size, None])
+        length = n_ctx // 2
+    elif length > n_ctx:
+        raise ValueError(f"Can't get samples longer than window size: {n_ctx}")
+    # TensorFlow 2.x compatibility
+    import tensorflow.compat.v1 as tf1
+    tf1.disable_v2_behavior()
+    with tf1.Session(graph=tf1.Graph()) as sess:
+        context = tf1.placeholder(tf.int32, [batch_size, None])
         np.random.seed(seed)
-        tf.set_random_seed(seed)
+        tf1.set_random_seed(seed)
         output = sample.sample_sequence(
             hparams=hparams,
             length=length,
@@ -72,9 +75,8 @@ def interact_model(
             top_k=top_k,
             top_p=top_p,
         )
-
-        saver = tf.train.Saver()
-        ckpt = tf.train.latest_checkpoint(os.path.join(models_dir, model_name))
+        saver = tf1.train.Saver()
+        ckpt = tf1.train.latest_checkpoint(os.path.join(models_dir, model_name))
         saver.restore(sess, ckpt)
 
         while True:
